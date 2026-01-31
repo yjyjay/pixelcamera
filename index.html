@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Dither Cam</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Retro Digital Font -->
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        /* Pixel Art & Retro UI Styles */
+        :root {
+            --bg-body: #2d2d2d;
+            --cam-body: #d1d5db; /* Light Grey Plastic */
+            --cam-dark: #9ca3af;
+            --screen-bg: #0f172a;
+            --btn-highlight: #ffffff;
+            --btn-shadow: #4b5563;
+        }
+
+        body {
+            font-family: 'VT323', monospace, sans-serif;
+            background-color: var(--bg-body);
+            background-image: radial-gradient(#333 15%, transparent 16%);
+            background-size: 8px 8px;
+        }
+
+        /* 픽셀 렌더링 */
+        canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        /* Retro Beveled Box (Windows 95 / Old UI Style) */
+        .retro-box {
+            background-color: var(--cam-body);
+            border: 2px solid #1f2937;
+            box-shadow: 
+                inset 2px 2px 0px rgba(255, 255, 255, 0.7),
+                inset -2px -2px 0px rgba(0, 0, 0, 0.3),
+                4px 4px 0px rgba(0,0,0,0.5);
+        }
+
+        /* Mobile Responsive Overrides */
+        @media (max-width: 640px) {
+            .retro-box {
+                border: none;
+                border-radius: 0;
+                box-shadow: none; /* 모바일에서는 평면적으로 꽉 차게 */
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
+        }
+
+        /* Inset Screen (LCD Look) */
+        .retro-screen {
+            background-color: #000;
+            border: 4px solid #4b5563;
+            box-shadow: inset 4px 4px 8px rgba(0,0,0,0.8);
+            position: relative;
+        }
+
+        .scanlines::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+            background-size: 100% 4px;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        /* Retro Button (Physical Click Feel) */
+        .retro-btn {
+            background-color: #e5e7eb;
+            border: 2px solid #1f2937;
+            box-shadow: 
+                inset 2px 2px 0px #ffffff,
+                inset -2px -2px 0px #4b5563,
+                2px 2px 0px #000000;
+            transition: all 0.1s;
+            text-transform: uppercase;
+            font-family: 'VT323', monospace;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .retro-btn:active, .retro-btn.active-tab {
+            background-color: #d1d5db;
+            box-shadow: 
+                inset 2px 2px 0px #000000,
+                inset -2px -2px 0px #ffffff;
+            transform: translate(2px, 2px);
+        }
+
+        .retro-btn.active-tab {
+            background-color: #3b82f6; /* Active Blue */
+            color: white;
+            border-color: #1e3a8a;
+        }
+
+        /* Shutter Button */
+        .shutter-btn {
+            background: radial-gradient(circle at 30% 30%, #ff6b6b, #dc2626);
+            border: 4px solid #7f1d1d;
+            border-radius: 50%;
+            box-shadow: 
+                inset 4px 4px 6px rgba(255,255,255,0.4),
+                inset -4px -4px 6px rgba(0,0,0,0.4),
+                4px 4px 0px rgba(0,0,0,0.5);
+            transition: all 0.1s;
+        }
+
+        .shutter-btn:active {
+            transform: scale(0.95);
+            box-shadow: 
+                inset 4px 4px 10px rgba(0,0,0,0.6),
+                2px 2px 0px rgba(0,0,0,0.5);
+        }
+
+        /* Decoration Stripes */
+        .grip-lines {
+            background: repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 4px,
+                #9ca3af 4px,
+                #9ca3af 6px
+            );
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-0 sm:p-4">
+
+    <!-- Camera Body -->
+    <div class="retro-box w-full max-w-none sm:max-w-md p-4 sm:p-6 rounded-none sm:rounded-lg relative">
+        
+        <!-- Decorative Grip -->
+        <div class="absolute right-4 top-1/2 -translate-y-1/2 h-48 w-4 grip-lines opacity-50 rounded hidden sm:block"></div>
+
+        <!-- Header / Brand -->
+        <div class="flex justify-between items-end mb-4 border-b-2 border-gray-400 pb-2">
+            <div>
+                <h1 class="text-3xl font-bold tracking-tighter text-gray-800 leading-none">PIXEL-SHOT</h1>
+                <p class="text-sm text-gray-600 font-mono tracking-widest">MODEL D-2026</p>
+            </div>
+            <div class="flex gap-1">
+                <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                <span class="text-xs font-bold text-red-600">REC</span>
+            </div>
+        </div>
+
+        <!-- Viewfinder (LCD Screen) -->
+        <div class="retro-screen aspect-square w-full rounded mb-6 overflow-hidden relative">
+            <div class="scanlines w-full h-full absolute inset-0 z-10 pointer-events-none"></div>
+            
+            <video id="video" autoplay playsinline class="absolute w-full h-full object-cover hidden"></video>
+            <canvas id="outputCanvas" class="w-full h-full object-cover bg-black"></canvas>
+            
+            <!-- On-Screen Display (OSD) -->
+            <div class="absolute top-2 left-2 z-20 text-green-400 text-xs font-mono drop-shadow-md">
+                ISO 400 <br> [AUTO]
+            </div>
+            
+            <!-- Date Display (New) -->
+            <div id="date-display" class="absolute top-2 right-2 z-20 text-green-400 text-xs font-mono drop-shadow-md tracking-widest">
+                2026-01-31
+            </div>
+
+            <div class="absolute bottom-2 right-2 z-20 text-green-400 text-xs font-mono drop-shadow-md" id="res-display">
+                128px
+            </div>
+
+            <!-- Shutter Animation -->
+            <div id="shutter" class="absolute inset-0 bg-white opacity-0 transition-opacity duration-100 pointer-events-none z-30"></div>
+            
+            <!-- Loading State -->
+            <div id="loading" class="absolute inset-0 flex items-center justify-center text-green-500 font-mono text-sm z-20 bg-black">
+                INITIALIZING...
+            </div>
+        </div>
+
+        <!-- Controls Area -->
+        <div class="bg-gray-300 p-3 rounded border border-gray-400 mb-4 shadow-inner">
+            
+            <!-- Resolution Dial -->
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Resolution</label>
+                <div class="flex gap-2">
+                    <button onclick="setResolution(80)" id="btn-80" class="retro-btn flex-1 py-1 text-lg">80</button>
+                    <button onclick="setResolution(128)" id="btn-128" class="retro-btn flex-1 py-1 text-lg active-tab">128</button>
+                    <button onclick="setResolution(160)" id="btn-160" class="retro-btn flex-1 py-1 text-lg">160</button>
+                </div>
+            </div>
+
+            <!-- Color Mode Dial -->
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Filter Mode</label>
+                <div class="grid grid-cols-4 gap-1">
+                    <button onclick="setColorMode('4')" id="btn-4c" class="retro-btn py-1 text-sm">BLUE</button>
+                    <button onclick="setColorMode('64')" id="btn-64c" class="retro-btn py-1 text-sm active-tab">64-C</button>
+                    <button onclick="setColorMode('128')" id="btn-128c" class="retro-btn py-1 text-sm">128-C</button>
+                    <button onclick="setColorMode('bw')" id="btn-bw" class="retro-btn py-1 text-sm">1-BIT</button>
+                </div>
+            </div>
+
+            <!-- Dither Type Toggle -->
+            <div>
+                <label class="block text-xs font-bold text-gray-600 mb-1 uppercase">Dither Algo</label>
+                <div class="flex gap-2">
+                    <button onclick="setDitherType('bayer')" id="btn-dither-bayer" class="retro-btn flex-1 py-1 text-sm active-tab">ORDERED</button>
+                    <button onclick="setDitherType('error')" id="btn-dither-error" class="retro-btn flex-1 py-1 text-sm">DIFFUSION</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Action (Shutter) -->
+        <div class="flex items-center justify-between mt-2">
+            
+            <!-- Result Actions (Hidden by default) -->
+            <div id="resultActions" class="hidden flex gap-2 w-full mr-4">
+                <button id="retakeBtn" class="retro-btn flex-1 py-2 text-sm bg-yellow-100">RESET</button>
+                <button id="downloadBtn" class="retro-btn flex-1 py-2 text-sm bg-green-100">SAVE</button>
+            </div>
+
+            <!-- Capture Button -->
+            <button id="captureBtn" class="shutter-btn w-16 h-16 mx-auto flex items-center justify-center group" aria-label="Take Photo">
+                <div class="w-12 h-12 rounded-full border-2 border-red-300 opacity-50 group-active:opacity-80"></div>
+            </button>
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
