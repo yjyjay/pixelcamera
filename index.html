@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
@@ -26,7 +26,7 @@
         }
 
         /* 픽셀 렌더링 */
-        canvas {
+        canvas, img.pixelated {
             image-rendering: pixelated;
             image-rendering: crisp-edges;
         }
@@ -134,6 +134,28 @@
                 #9ca3af 6px
             );
         }
+
+        /* Toast Message */
+        .toast {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            width: 80%;
+            text-align: center;
+        }
+        .toast.show {
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-0 sm:p-4">
@@ -163,6 +185,9 @@
             <video id="video" autoplay playsinline class="absolute w-full h-full object-cover hidden"></video>
             <canvas id="outputCanvas" class="w-full h-full object-cover bg-black"></canvas>
             
+            <!-- Hidden Image for Mobile Long-press Save -->
+            <img id="captured-image" class="absolute top-0 left-0 w-full h-full object-cover hidden pixelated" style="z-index: 5;" alt="Captured Pixel Art" />
+
             <!-- On-Screen Display (OSD) -->
             <div class="absolute top-2 left-2 z-20 text-green-400 text-xs font-mono drop-shadow-md">
                 ISO 400 <br> [AUTO]
@@ -189,6 +214,9 @@
             <div id="loading" class="absolute inset-0 flex items-center justify-center text-green-500 font-mono text-sm z-20 bg-black">
                 INITIALIZING...
             </div>
+            
+            <!-- Toast Notification -->
+            <div id="toast" class="toast">저장이 안 되면 화면을 길게 눌러주세요!</div>
         </div>
 
         <!-- Controls Area -->
