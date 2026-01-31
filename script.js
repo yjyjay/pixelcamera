@@ -1,5 +1,6 @@
-        const video = document.getElementById('video');
+const video = document.getElementById('video');
         const outputCanvas = document.getElementById('outputCanvas');
+        const capturedImage = document.getElementById('captured-image'); // New Image Element
         const ctx = outputCanvas.getContext('2d');
         const shutter = document.getElementById('shutter');
         const loading = document.getElementById('loading');
@@ -9,13 +10,14 @@
         const downloadBtn = document.getElementById('downloadBtn');
         const resDisplay = document.getElementById('res-display');
         const dateDisplay = document.getElementById('date-display');
+        const toast = document.getElementById('toast');
 
         let currentResolution = 128;
         let colorMode = '64'; 
         let ditherType = 'bayer'; 
         let isCaptured = false;
         let stream = null;
-        let facingMode = 'user'; // 'user' (전면) or 'environment' (후면)
+        let facingMode = 'user'; 
 
         // 임시 처리를 위한 오프스크린 캔버스
         const offscreenCanvas = document.createElement('canvas');
@@ -109,6 +111,14 @@
             data[index + 2] = finalB;
         }
 
+        function showToast(msg) {
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
         // --- Main Logic ---
 
         function updateDate() {
@@ -171,10 +181,7 @@
         }
 
         function toggleCamera() {
-            // 카메라 전환 (user <-> environment)
             facingMode = facingMode === 'user' ? 'environment' : 'user';
-            // 모바일 환경 등에서 텍스트 업데이트 (선택 사항)
-            // console.log("Switched to: " + facingMode);
             startCamera();
         }
 
@@ -284,18 +291,31 @@
                 shutter.classList.remove('opacity-100');
                 shutter.classList.add('opacity-0');
             }, 100);
+            
+            // Convert Canvas to Image immediately for mobile save compatibility
+            const dataUrl = outputCanvas.toDataURL('image/png');
+            capturedImage.src = dataUrl;
+            capturedImage.classList.remove('hidden');
+
             captureBtn.style.display = 'none'; 
             resultActions.classList.remove('hidden');
         });
 
         retakeBtn.addEventListener('click', () => {
             isCaptured = false;
+            capturedImage.classList.add('hidden');
+            capturedImage.src = ''; // Clear memory
+            
             captureBtn.style.display = 'flex';
             resultActions.classList.add('hidden');
             requestAnimationFrame(update);
         });
 
         downloadBtn.addEventListener('click', () => {
+            // Show toast for Google App users
+            showToast("저장이 안 되면 화면을 길게 눌러주세요!");
+
+            // Attempt standard download
             const link = document.createElement('a');
             link.download = `pixelshot-${currentResolution}px-${colorMode}-${ditherType}.png`;
             link.href = outputCanvas.toDataURL('image/png');
